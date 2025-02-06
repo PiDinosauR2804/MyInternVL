@@ -893,12 +893,22 @@ def main():
         logger.info('Loading InternVLChatModel...')
         config = InternVLChatConfig.from_pretrained(model_args.model_name_or_path)
         config.vision_config.drop_path_rate = model_args.drop_path_rate
+        
+        
+        # if config.llm_config.model_type == 'internlm2':
+        #     config.llm_config.attn_implementation = 'flash_attention_2'  # for InternLM
+        #     logger.info('Using flash_attention_2 for InternLM')
+        # else:
+        #     config.llm_config._attn_implementation = 'flash_attention_2'  # for LLaMA
+        #     logger.info('Using flash_attention_2 for LLaMA')
+ 
         if config.llm_config.model_type == 'internlm2':
-            config.llm_config.attn_implementation = 'flash_attention_2'  # for InternLM
-            logger.info('Using flash_attention_2 for InternLM')
+            config.llm_config.attn_implementation = 'eager'  # for InternLM
+            logger.info('Using eager for InternLM')
         else:
-            config.llm_config._attn_implementation = 'flash_attention_2'  # for LLaMA
-            logger.info('Using flash_attention_2 for LLaMA')
+            config.llm_config._attn_implementation = 'eager'  # for LLaMA
+            logger.info('Using eager for LLaMA')
+        
         config.template = data_args.conv_style
         config.select_layer = model_args.vision_select_layer
         config.dynamic_image_size = data_args.dynamic_image_size
@@ -907,7 +917,7 @@ def main():
         config.min_dynamic_patch = data_args.min_dynamic_patch
         config.max_dynamic_patch = data_args.max_dynamic_patch
         model = InternVLChatModel.from_pretrained(
-            model_args.model_name_or_path, torch_dtype=torch.bfloat16, config=config)
+            model_args.model_name_or_path, torch_dtype=torch.bfloat16, config=config, attn_implementation="eager", use_flash_attn = False)
     else:
         logger.info('Loading ViT-6B...')
         vision_config = InternVisionConfig.from_pretrained(model_args.vision_path)
@@ -916,14 +926,25 @@ def main():
             model_args.vision_path, torch_dtype=torch.bfloat16, config=vision_config)
         logger.info('Loading LLaMA...')
         llm_config = AutoConfig.from_pretrained(model_args.llm_path, trust_remote_code=True)
+        
+        # if llm_config.model_type == 'internlm2':
+        #     model_type = InternLM2ForCausalLM
+        #     llm_config.attn_implementation = 'flash_attention_2'  # for InternLM
+        #     logger.info('Using flash_attention_2 for InternLM')
+        # else:
+        #     model_type = AutoModelForCausalLM
+        #     llm_config._attn_implementation = 'flash_attention_2'  # for LLaMA
+        #     logger.info('Using flash_attention_2 for LLaMA')
+            
         if llm_config.model_type == 'internlm2':
             model_type = InternLM2ForCausalLM
-            llm_config.attn_implementation = 'flash_attention_2'  # for InternLM
-            logger.info('Using flash_attention_2 for InternLM')
+            llm_config.attn_implementation = 'eager'  # for InternLM
+            logger.info('Using eager for InternLM')
         else:
             model_type = AutoModelForCausalLM
-            llm_config._attn_implementation = 'flash_attention_2'  # for LLaMA
-            logger.info('Using flash_attention_2 for LLaMA')
+            llm_config._attn_implementation = 'eager'  # for LLaMA
+            logger.info('Using eager for LLaMA')
+        
         llm = model_type.from_pretrained(
             model_args.llm_path, torch_dtype=torch.bfloat16,
             config=llm_config, trust_remote_code=True)
